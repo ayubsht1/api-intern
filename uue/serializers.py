@@ -1,37 +1,60 @@
 from rest_framework import serializers
-from .models import *
+from .models import GroupTag, Group, Post, Comment, PostLike, CommentReply
+from django.contrib.auth.models import User
 
-class UserProfileSerializer(serializers.ModelSerializer):
+class GroupTagSerializer(serializers.ModelSerializer):
     class Meta:
-        model = UserProfile
-        fields = '__all__'
+        model = GroupTag
+        fields = ['id', 'name']
 
-class SyncDataSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SyncData
-        fields = '__all__'
+class GroupSerializer(serializers.ModelSerializer):
+    tags = serializers.PrimaryKeyRelatedField(queryset=GroupTag.objects.all(), many=True)
+    members = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True)  
 
-class DashboardSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Dashboard
-        fields = '__all__'
+        model = Group
+        fields = ['id', 'name', 'description', 'created_by', 'members', 'tags']
 
-class CommunitySerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Community
-        fields = '__all__'
+        model = User
+        fields = ['id', 'username', 'email']
 
-class ForumSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Forum
-        fields = '__all__'
+class PostSerializer(serializers.ModelSerializer):
+    author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    group = serializers.PrimaryKeyRelatedField(queryset=Group.objects.all())
+    created_at = serializers.DateTimeField(read_only=True)
+    like_count = serializers.SerializerMethodField()
 
-class ProgressSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Progress
-        fields = '__all__'
+        model = Post
+        fields = ['id', 'title', 'content', 'author', 'group', 'created_at', 'like_count']
 
-class BookmarkSerializer(serializers.ModelSerializer):
+    def get_like_count(self, obj):
+        return obj.post_likes.count()  # Return the number of likes
+    
+
+class PostLikeSerializer(serializers.ModelSerializer):
+    post = serializers.PrimaryKeyRelatedField(queryset=Post.objects.all())
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+
     class Meta:
-        model = Bookmark
-        fields = '__all__'
+        model = PostLike
+        fields = ['id','post', 'user', 'created_at']
+
+class CommentSerializer(serializers.ModelSerializer):
+    author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    post = serializers.PrimaryKeyRelatedField(queryset=Post.objects.all()) 
+    created_at = serializers.DateTimeField(read_only=True)  
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'body', 'author', 'post', 'created_at']
+
+class CommentReplySerializer(serializers.ModelSerializer):
+    author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    comment = serializers.PrimaryKeyRelatedField(queryset=Comment.objects.all())
+
+    class Meta:
+        model = CommentReply
+        fields = ['id', 'body', 'author', 'comment', 'created_at']

@@ -1,16 +1,29 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import *
+from django.urls import path
+from uue.views import (
+    GroupListCreateView,
+    GroupDetailView,
+    GroupTagListCreateView,
+    GroupTagDetailView,
+    PostListCreateView,
+    PostDetailView,
+    PostLikeView,
+    CommentListCreateView,
+    CommentDetailView,
+    CommentReplyListCreateView,
+    CommentReplyDetailView
 
-router = DefaultRouter()
-router.register(r'user-profiles', UserProfileViewSet)
-router.register(r'sync-data', SyncDataViewSet)
-router.register(r'dashboards', DashboardViewSet)
-router.register(r'communities', CommunityViewSet)
-router.register(r'forums', ForumViewSet)
-router.register(r'progress', ProgressViewSet)
-router.register(r'bookmarks', BookmarkViewSet)
+)
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('tags/', GroupTagListCreateView.as_view(), name="tag-list-create"),
+    path('tags/<int:pk>/', GroupTagDetailView.as_view(), name="tag-detail"),
+    path('groups/', GroupListCreateView.as_view(), name="group-list-create"),
+    path('groups/<int:pk>/', GroupDetailView.as_view(), name="group-detail"),  
+    path('posts/', PostListCreateView.as_view(), name="post-list-create"),
+    path('posts/<int:pk>/', PostDetailView.as_view(), name="post-detail"),
+    path('posts/<int:post_id>/like/', PostLikeView.as_view(), name='post-like'),  # To like/unlike a post
+    path('comments/', CommentListCreateView.as_view(), name="comment-list-create"),
+    path('comments/<int:pk>/', CommentDetailView.as_view(), name="comment-detail"),
+    path('comments-replies/', CommentReplyListCreateView.as_view(), name='comment-reply-list-create'),
+    path('comments-replies/<int:pk>/', CommentReplyDetailView.as_view(), name='comment-reply-detail'),
 ]
