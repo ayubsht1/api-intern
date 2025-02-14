@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import GroupTag, Group, Post, Comment, PostLike, CommentReply
-from django.contrib.auth.models import User
+from authentication.models import User
 
 class GroupTagSerializer(serializers.ModelSerializer):
     class Meta:

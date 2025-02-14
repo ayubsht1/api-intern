@@ -23,4 +23,5 @@ urlpatterns = [
     path('elearning/', include('elearning.urls')),
     path('marketplace/', include('marketplace.urls')),
     path('uue/', include('uue.urls')),
+    path('auth/', include('authentication.urls')),
 ]
