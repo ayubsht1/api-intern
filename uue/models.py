@@ -1,6 +1,23 @@
 from django.db import models
 from authentication.models import User
 
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    # profile_picture = models.ImageField(upload_to='profile_pictures', blank=True, null=True)
+    # learning_progress = models.ForeignKey(CourseProgress, on_delete=models.CASCADE, blank=True, null=True)
+    news_interests = models.CharField(max_length=200, blank=True, null=True)
+    shareable_link = models.CharField(max_length=200, blank=True, null=True)
+
+    def generate_shareable_link(self):
+        return f"http://127.0.0.1:8000/uue/profiles/share/{self.user.username}/"
+    
+    def save(self, *args, **kwargs):
+        self.shareable_link = self.generate_shareable_link()
+        super(Profile, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return self.user.username
+
 class GroupTag(models.Model):
     name = models.CharField(max_length=100, unique=True)
     def __str__(self):

@@ -1,10 +1,34 @@
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Post, Comment, Group, GroupTag, PostLike, CommentReply
+from .models import Post, Comment, Group, GroupTag, PostLike, CommentReply, Profile
 from .serializers import (
     PostSerializer, CommentSerializer, GroupSerializer, GroupTagSerializer,
-    PostLikeSerializer, CommentReplySerializer)
+    PostLikeSerializer, CommentReplySerializer, ProfileSerializer)
+
+class ProfileListCreateView(generics.ListCreateAPIView):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
+    # permission_classes = [IsAuthenticated]
+
+    # def perform_create(self, serializer):
+    #     serializer.save(user=self.request.user)
+
+class ProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
+    
+    # permission_classes = [IsAuthenticated]
+    
+class ProfileShareView(generics.RetrieveAPIView):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
+    lookup_field = 'user__username'  # Look up profile by username
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()  # Get the Profile instance
+        serializer = self.get_serializer(instance)  # Serialize the profile data
+        return Response(serializer.data)  # Return all profile details
 
 class GroupListCreateView(generics.ListCreateAPIView):
     queryset = Group.objects.all()

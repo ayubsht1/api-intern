@@ -1,6 +1,11 @@
 from rest_framework import serializers
-from .models import GroupTag, Group, Post, Comment, PostLike, CommentReply
+from .models import GroupTag, Group, Post, Comment, PostLike, CommentReply, Profile
 from authentication.models import User
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = "__all__"
 
 class GroupTagSerializer(serializers.ModelSerializer):
     class Meta:
