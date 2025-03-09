@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'rest_framework_simplejwt',
     'ebooks',
     'elearning',
     'marketplace',
@@ -55,10 +56,18 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'middlewares.ExceptionLoggerMiddleware'
+    'middlewares.ExceptionLoggerMiddleware',
+    'marketplace.middlewares.UrlsMiddleware',
+    'marketplace.middlewares.InternalServerMiddleware'
 ]
 
 ROOT_URLCONF = 'backend.urls'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
 
 TEMPLATES = [
     {
