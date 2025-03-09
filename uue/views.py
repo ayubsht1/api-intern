@@ -1,10 +1,11 @@
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Post, Comment, Group, GroupTag, PostLike, CommentReply, Profile
-from .serializers import (
-    PostSerializer, CommentSerializer, GroupSerializer, GroupTagSerializer,
-    PostLikeSerializer, CommentReplySerializer, ProfileSerializer)
+from .models import (Group, GroupTag, Post, PostLike, Comment, ForumCategory, Forum, ForumReply,
+Profile)
+from .serializers import (GroupSerializer, GroupTagSerializer, PostSerializer, PostLikeSerializer, CommentSerializer, ForumCategorySerializer,
+    ForumSerializer, ForumReplySerializer, ProfileSerializer)
+
 
 class ProfileListCreateView(generics.ListCreateAPIView):
     queryset = Profile.objects.all()
@@ -17,18 +18,10 @@ class ProfileListCreateView(generics.ListCreateAPIView):
 class ProfileDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
+    lookup_field = 'slug'
     
     # permission_classes = [IsAuthenticated]
     
-class ProfileShareView(generics.RetrieveAPIView):
-    queryset = Profile.objects.all()
-    serializer_class = ProfileSerializer
-    lookup_field = 'user__username'  # Look up profile by username
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()  # Get the Profile instance
-        serializer = self.get_serializer(instance)  # Serialize the profile data
-        return Response(serializer.data)  # Return all profile details
 
 class GroupListCreateView(generics.ListCreateAPIView):
     queryset = Group.objects.all()
@@ -56,7 +49,6 @@ class GroupTagDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = GroupTagSerializer
     # permission_classes = [IsAuthenticated]
 
-
 class PostListCreateView(generics.ListCreateAPIView):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
@@ -65,13 +57,15 @@ class PostListCreateView(generics.ListCreateAPIView):
     # def perform_create(self, serializer):
     #     serializer.save(author=self.request.user)
 
-
 class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
+    lookup_field = 'slug'
+
     # permission_classes = [IsAuthenticated]
     # def get_queryset(self):
     #     return Post.objects.filter(author=self.request.user)
+
 
 class PostLikeView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
@@ -113,7 +107,6 @@ class PostLikeView(generics.GenericAPIView):
         except PostLike.DoesNotExist:
             return Response({"detail": "You have not liked this post."}, status=status.HTTP_400_BAD_REQUEST)
 
-
 class CommentListCreateView(generics.ListCreateAPIView):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
@@ -130,15 +123,45 @@ class CommentDetailView(generics.RetrieveUpdateDestroyAPIView):
     # def get_queryset(self):
     #     return Post.objects.filter(userId=self.request.user)
 
-class CommentReplyListCreateView(generics.ListCreateAPIView):
-    queryset = CommentReply.objects.all()
-    serializer_class = CommentReplySerializer
+class ForumCategoryListCreateView(generics.ListCreateAPIView):
+    queryset = ForumCategory.objects.all()
+    serializer_class = ForumCategorySerializer
+    # permission_classes = [IsAuthenticated]
+
+    # def perform_create(self, serializer):
+    #     serializer.save()
+
+class ForumCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = ForumCategory.objects.all()
+    serializer_class = ForumCategorySerializer
+    # permission_classes = [IsAuthenticated]
+    
+class ForumListCreateView(generics.ListCreateAPIView):
+    queryset = Forum.objects.all()
+    serializer_class = ForumSerializer
     # permission_classes = [IsAuthenticated]
 
     # def perform_create(self, serializer):
     #     serializer.save(author=self.request.user)
 
-class CommentReplyDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = CommentReply.objects.all()
-    serializer_class = CommentReplySerializer
+class ForumDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Forum.objects.all()
+    serializer_class = ForumSerializer
     # permission_classes = [IsAuthenticated]
+    # def get_queryset(self):
+    #     return Forum.objects.filter(author=self.request.user)
+
+class ForumReplyListCreateView(generics.ListCreateAPIView):
+    queryset = ForumReply.objects.all()
+    serializer_class = ForumReplySerializer
+    # permission_classes = [IsAuthenticated]
+
+    # def perform_create(self, serializer):
+    #     serializer.save(author=self.request.user)
+
+class ForumReplyDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = ForumReply.objects.all()
+    serializer_class = ForumReplySerializer
+    # permission_classes = [IsAuthenticated]
+    # def get_queryset(self):
+    #     return Post.objects.filter(author=self.request.user)

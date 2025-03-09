@@ -1,43 +1,45 @@
 from rest_framework import serializers
-from .models import GroupTag, Group, Post, Comment, PostLike, CommentReply, Profile
+from .models import (GroupTag, Group, Post, PostLike, Comment, ForumCategory, Forum, ForumReply,
+Profile)
 from authentication.models import User
 
 class ProfileSerializer(serializers.ModelSerializer):
+    share_url = serializers.SerializerMethodField()
     class Meta:
         model = Profile
-        fields = "__all__"
+        fields = ['user','share_url', 'news_interests']
+        
+    def get_share_url(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.get_absolute_url()) if request else obj.get_share_url()
 
 class GroupTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = GroupTag
-        fields = ['id', 'name']
+        fields = "__all__"
 
 class GroupSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(queryset=GroupTag.objects.all(), many=True)
-    members = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True)  
-
     class Meta:
         model = Group
-        fields = ['id', 'name', 'description', 'created_by', 'members', 'tags']
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email']
+        fields = "__all__"
 
 class PostSerializer(serializers.ModelSerializer):
     author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     group = serializers.PrimaryKeyRelatedField(queryset=Group.objects.all())
     created_at = serializers.DateTimeField(read_only=True)
-    like_count = serializers.SerializerMethodField()
-
+    share_url = serializers.SerializerMethodField()
+    like_count= serializers.SerializerMethodField()
     class Meta:
         model = Post
-        fields = ['id', 'title', 'content', 'author', 'group', 'created_at', 'like_count']
+        fields = ['id', 'title', 'content', 'author', 'group', 'created_at','share_url', 'like_count']
+
+    def get_share_url(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.get_absolute_url()) if request else obj.get_share_url()
 
     def get_like_count(self, obj):
-        return obj.post_likes.count()  # Return the number of likes
-    
+        return obj.post_likes.count() 
 
 class PostLikeSerializer(serializers.ModelSerializer):
     post = serializers.PrimaryKeyRelatedField(queryset=Post.objects.all())
@@ -45,7 +47,7 @@ class PostLikeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PostLike
-        fields = ['id','post', 'user', 'created_at']
+        fields = "__all__"
 
 class CommentSerializer(serializers.ModelSerializer):
     author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
@@ -54,12 +56,23 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ['id', 'body', 'author', 'post', 'created_at']
+        fields = "__all__"
 
-class CommentReplySerializer(serializers.ModelSerializer):
-    author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-    comment = serializers.PrimaryKeyRelatedField(queryset=Comment.objects.all())
-
+class ForumCategorySerializer(serializers.ModelSerializer):
     class Meta:
-        model = CommentReply
-        fields = ['id', 'body', 'author', 'comment', 'created_at']
+        model = ForumCategory
+        fields = "__all__"
+
+class ForumSerializer(serializers.ModelSerializer):
+    category = serializers.PrimaryKeyRelatedField(queryset=ForumCategory.objects.all())
+    author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    class Meta:
+        model = Forum
+        fields = "__all__"
+
+class ForumReplySerializer(serializers.ModelSerializer):
+    forum = serializers.PrimaryKeyRelatedField(queryset=Forum.objects.all())
+    author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    class Meta:
+        model = ForumReply
+        fields = "__all__"
