@@ -19,14 +19,19 @@ class BundleSerializer(serializers.ModelSerializer):
 
 class CartItemSerializer(serializers.ModelSerializer):
     product_name = serializers.ReadOnlyField(source="product.name")
+    bundle_name = serializers.ReadOnlyField(source="bundle.name")
     total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
-        fields = ['id', 'product', 'product_name', 'quantity', 'total_price']
+        fields = ['id', 'product', 'bundle', 'product_name', 'bundle_name', 'quantity', 'total_price']
 
     def get_total_price(self, obj):
-        return obj.product.price * obj.quantity
+        if obj.product:
+            return obj.product.price * obj.quantity
+        elif obj.bundle:
+            return obj.bundle.calculate_discounted_price() * obj.quantity
+        return 0
 
 
 class CartSerializer(serializers.ModelSerializer):
@@ -39,12 +44,13 @@ class CartSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'user', 'items']
 
     def get_total_price(self, obj):
-        return sum(item.product.price * item.quantity for item in obj.items.all())
+        return sum(item.product.price * item.quantity if item.product else item.bundle.calculate_discounted_price() * item.quantity
+                   for item in obj.items.all())
 
 class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
-        fields = ['id','product','quantity','price']
+        fields = ['id', 'product', 'bundle', 'quantity', 'price']
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True, source='order_items')

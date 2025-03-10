@@ -48,6 +48,12 @@ INSTALLED_APPS = [
     'uue',
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -61,13 +67,14 @@ MIDDLEWARE = [
     'marketplace.middlewares.InternalServerMiddleware'
 ]
 
-ROOT_URLCONF = 'backend.urls'
+CORS_ALLOW_ALL_ORIGINS = True
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-}
+
+CORS_ALLOWED_ORIGINS = [
+    "http://192.168.1.73:3000",  # Frontend machine's IP and port
+]
+
+ROOT_URLCONF = 'backend.urls'
 
 TEMPLATES = [
     {

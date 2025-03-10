@@ -1,12 +1,10 @@
 from django.urls import path
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import (CategoryListCreateView, ProductListCreateView,CartDetailView, CartItemListCreateView, CartItemDetailView, OrderListCreateView, OrderDetailView, ShippingAddressAPIView,
                      BundleListCreateView, CategoryDetailView, ProductDetailView, BundleDetailView)
 from . import views
 
 urlpatterns = [
     path('',views.home, name='home'),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('categories/', CategoryListCreateView.as_view(), name='category-list-create'),
     path('categories/<int:pk>/', CategoryDetailView.as_view(), name='category-detail'),
     path('products/', ProductListCreateView.as_view(), name='product-list-create'),

@@ -6,6 +6,8 @@ from .models import (Category, Product, Cart, CartItem, Order, OrderItem, Shippi
 from .serializers import (CategorySerializer, ProductSerializer, CartSerializer, CartItemSerializer,
 OrderSerializer, ShippingAddressSerializer, BundleSerializer)
 from django.http import HttpResponse
+from django.utils.timezone import now, timedelta
+
 
 def home (request):
     return HttpResponse('Welcome to the home page!')
@@ -13,7 +15,7 @@ def home (request):
 class CategoryListCreateView(generics.ListCreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    # permission_classes = [permissions.IsAuthenticated]
 
 class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
@@ -73,26 +75,76 @@ class OrderListCreateView(generics.ListCreateAPIView):
         payment_method = request.data.get('payment_method')
         cart_serializer = CartSerializer(cart)
         total = cart_serializer.data['total_price']
-        with transaction.atomic():
 
+        recent_order = Order.objects.filter(
+            user=user,
+            total_price=total,
+            payment_method=payment_method,
+            created_at__gte=now() - timedelta(minutes=1)  # Prevents duplicate orders within 1 minute
+        ).first()
+
+        if recent_order:
+            return Response(
+                {"error": "Duplicate order detected. Please wait before placing another order."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
             order = Order.objects.create(
                 user=user, 
                 payment_method=payment_method,
                 total_price=total
-                )
-        for item in cart_items:
-            if item.quantity > item.product.stock:
-                return Response({"error": "Not enough stock"}, status=status.HTTP_400_BAD_REQUEST)
-            OrderItem.objects.create(
-                order=order, 
-                product=item.product, 
-                quantity= item.quantity,
-                price=item.product.price * item.quantity
             )
-            item.product.stock -= item.quantity
-            item.product.save()
 
-        cart.items.all().delete()
+            for item in cart_items:
+                if item.product:
+                    # Check stock for normal products
+                    if item.quantity > item.product.stock:
+                        return Response(
+                            {"error": f"Not enough stock for {item.product.name}"}, 
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    # Create order item for normal product
+                    OrderItem.objects.create(
+                        order=order, 
+                        product=item.product,
+                        quantity=item.quantity,
+                        price=item.product.price * item.quantity
+                    )
+
+                    # Reduce stock for the product
+                    item.product.stock -= item.quantity
+                    item.product.save()
+
+                elif item.bundle:
+                    # Get all products inside the bundle
+                    bundle_products = item.bundle.products.all()
+
+                    # Step 1: Check if all products have enough stock
+                    for product in bundle_products:
+                        if item.quantity > product.stock:
+                            return Response(
+                                {"error": f"Not enough stock for {product.name} in bundle {item.bundle.name}"},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+
+                    # Step 2: Create an order item for the bundle
+                    OrderItem.objects.create(
+                        order=order,
+                        bundle=item.bundle,
+                        quantity=item.quantity,
+                        price=item.bundle.calculate_discounted_price() * item.quantity
+                    )
+
+                    # Step 3: Reduce stock for all products inside the bundle
+                    for product in bundle_products:
+                        product.stock -= item.quantity  # Reduce stock based on bundle quantity
+                        product.save()
+
+            # Step 4: Clear the cart after order creation
+            cart_items.delete()
+
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
     
 class OrderDetailView(generics.RetrieveDestroyAPIView):
