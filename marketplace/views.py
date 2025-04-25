@@ -1,13 +1,12 @@
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import generics, status, permissions
+# from rest_framework.filters import SearchFilter
 from django.db import transaction
-from .models import (Category, Product, Cart, CartItem, Order, OrderItem, ShippingAddress, Bundle)
-from .serializers import (CategorySerializer, ProductSerializer, CartSerializer, CartItemSerializer,
+from .models import (Category, Product, ProductGallery, WishList, Cart, CartItem, Order, OrderItem, ShippingAddress, Bundle)
+from .serializers import (CategorySerializer, ProductSerializer, ProductGallerySerializer, WishListSerializer, CartSerializer, CartItemSerializer,
 OrderSerializer, ShippingAddressSerializer, BundleSerializer)
 from django.http import HttpResponse
 from django.utils.timezone import now, timedelta
-
 
 def home (request):
     return HttpResponse('Welcome to the home page!')
@@ -15,7 +14,7 @@ def home (request):
 class CategoryListCreateView(generics.ListCreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    # permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
@@ -30,15 +29,89 @@ class ProductListCreateView(generics.ListCreateAPIView):
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    lookup_field = 'uuid'
     # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+class ProductImageUploadView(generics.ListCreateAPIView):
+    queryset = ProductGallery.objects.all()
+    serializer_class = ProductGallerySerializer
+    # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+class ProductImageDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = ProductGallery.objects.all()
+    serializer_class = ProductGallerySerializer
+    lookup_field = 'pk'
+    # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+class WishListListCreateView(generics.ListCreateAPIView):
+    serializer_class = WishListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return WishList.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class WishListDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = WishListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return WishList.objects.filter(user=self.request.user)
+
+class BundleListCreateView(generics.ListCreateAPIView):
+    queryset = Bundle.objects.prefetch_related('products').all()
+    serializer_class = BundleSerializer
+
+    # def get_permissions(self):
+    #     if self.request.method == 'POST':
+    #         return [permissions.IsAdminUser()]
+    #     return [permissions.AllowAny()]
+    
+    def list(self, request, *args, **kwargs):
+        bundles = self.get_queryset()
+        data = []
+        for bundle in bundles:
+            total_price = bundle.calculate_price() if hasattr(bundle, 'calculate_price') else 0
+            data.append({
+                'id': bundle.id,
+                'name': bundle.name,
+                'products': ProductSerializer(bundle.products.all(), many=True).data if bundle.products.exists() else [],
+                'total_price': total_price
+            })
+        return Response(data)
+    
+class BundleDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Bundle.objects.prefetch_related('products').all()
+    serializer_class = BundleSerializer
+    lookup_field = 'uuid'
+
+    # def get_permissions(self):
+    #     if self.request.method in ['PUT', 'DELETE']:
+    #         return [permissions.IsAdminUser()]
+    #     return [permissions.AllowAny()]
+    
+    def retrieve(self, request, *args, **kwargs):
+        bundle = self.get_object()
+        total_price = bundle.calculate_price() if hasattr(bundle, 'calculate_price') else 0
+        data = {
+            'id': bundle.id,
+            'name': bundle.name,
+            'products': ProductSerializer(bundle.products.all(), many=True).data if bundle.products.exists() else [],
+            'total_price': total_price,
+        }
+        return Response(data)
 
 class CartDetailView(generics.RetrieveUpdateAPIView):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
+    lookup_field = 'uuid'
     # permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return Cart.objects.get(user= self.request.user)
+        cart, created = Cart.objects.get_or_create(user=self.request.user)
+        return cart
     
 class CartItemListCreateView(generics.ListCreateAPIView):
     queryset = CartItem.objects.all()
@@ -57,6 +130,24 @@ class CartItemDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = CartItemSerializer
     # permission_classes = [permissions.IsAuthenticated]
 
+class ShippingAddressListCreateView(generics.ListCreateAPIView):
+    serializer_class = ShippingAddressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ShippingAddress.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class ShippingAddressDetailView(generics.RetrieveUpdateAPIView):
+    serializer_class = ShippingAddressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """Retrieve a shipping address for the authenticated user."""
+        return ShippingAddress.objects.filter(user=self.request.user)
+
 class OrderListCreateView(generics.ListCreateAPIView):
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -73,6 +164,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
             return Response({"error": "Your cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
         
         payment_method = request.data.get('payment_method')
+        shipping_address_id = request.data.get('shipping_address_id', None)
         cart_serializer = CartSerializer(cart)
         total = cart_serializer.data['total_price']
 
@@ -80,6 +172,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
             user=user,
             total_price=total,
             payment_method=payment_method,
+            shipping_address_id = shipping_address_id,
             created_at__gte=now() - timedelta(minutes=1)  # Prevents duplicate orders within 1 minute
         ).first()
 
@@ -88,12 +181,20 @@ class OrderListCreateView(generics.ListCreateAPIView):
                 {"error": "Duplicate order detected. Please wait before placing another order."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        shipping_address = None
+        if shipping_address_id:
+            try:
+                shipping_address = ShippingAddress.objects.get(id=shipping_address_id, user=user)
+            except ShippingAddress.DoesNotExist:
+                return Response({"error":"Shipping address not found."},status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
             order = Order.objects.create(
                 user=user, 
                 payment_method=payment_method,
-                total_price=total
+                total_price=total,
+                shipping_address=shipping_address
             )
 
             for item in cart_items:
@@ -134,7 +235,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
                         order=order,
                         bundle=item.bundle,
                         quantity=item.quantity,
-                        price=item.bundle.calculate_discounted_price() * item.quantity
+                        price=item.bundle.calculate_price() * item.quantity
                     )
 
                     # Step 3: Reduce stock for all products inside the bundle
@@ -147,71 +248,11 @@ class OrderListCreateView(generics.ListCreateAPIView):
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
     
-class OrderDetailView(generics.RetrieveDestroyAPIView):
+class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'uuid'
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user)
-
-
-class ShippingAddressAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        addresses = ShippingAddress.objects.filter(user=request.user)
-        serializer = ShippingAddressSerializer(addresses, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        serializer = ShippingAddressSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class BundleListCreateView(generics.ListCreateAPIView):
-    queryset = Bundle.objects.prefetch_related('products').all()
-    serializer_class = BundleSerializer
-
-    # def get_permissions(self):
-    #     if self.request.method == 'POST':
-    #         return [permissions.IsAdminUser()]
-    #     return [permissions.AllowAny()]
     
-    def list(self, request, *args, **kwargs):
-        bundles = self.get_queryset()
-        data = []
-        for bundle in bundles:
-            discounted_price = bundle.calculate_discounted_price() if hasattr(bundle, 'calculate_discounted_price') else 0
-            data.append({
-                'id': bundle.id,
-                'name': bundle.name,
-                'products': ProductSerializer(bundle.products.all(), many=True).data if bundle.products.exists() else [],
-                'discount_percentage': bundle.discount_percentage,
-                'discounted_price': discounted_price
-            })
-        return Response(data)
-    
-class BundleDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Bundle.objects.prefetch_related('products').all()
-    serializer_class = BundleSerializer
-    lookup_field = 'pk'
-
-    # def get_permissions(self):
-    #     if self.request.method in ['PUT', 'DELETE']:
-    #         return [permissions.IsAdminUser()]
-    #     return [permissions.AllowAny()]
-    
-    def retrieve(self, request, *args, **kwargs):
-        bundle = self.get_object()
-        discounted_price = bundle.calculate_discounted_price() if hasattr(bundle, 'calculate_discounted_price') else 0
-        data = {
-            'id': bundle.id,
-            'name': bundle.name,
-            'products': ProductSerializer(bundle.products.all(), many=True).data if bundle.products.exists() else [],
-            'discount_percentage': bundle.discount_percentage,
-            'discounted_price': discounted_price,
-        }
-        return Response(data)
